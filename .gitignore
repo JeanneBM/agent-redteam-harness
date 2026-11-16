@@ -1,4 +1,5 @@
 /.local/
+/reports/
 /.venv/
 __pycache__/
 *.pyc

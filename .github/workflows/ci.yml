@@ -26,11 +26,11 @@ jobs:
       - name: Validate bundled suite
         run: python -m redteam validate --suite cases/java-ci-triage
       - name: Hardened simulated target must PASS
-        run: python -m redteam run --suite cases/java-ci-triage --target simulated:hardened --policy policy/thresholds.json --output .local/simulated-hardened
+        run: python -m redteam run --suite cases/java-ci-triage --target simulated:hardened --policy policy/thresholds.json --output reports/simulated-hardened
       - name: Naive simulated target must FAIL
         run: |
           set +e
-          python -m redteam run --suite cases/java-ci-triage --target simulated:naive --policy policy/thresholds.json --output .local/simulated-naive
+          python -m redteam run --suite cases/java-ci-triage --target simulated:naive --policy policy/thresholds.json --output reports/simulated-naive
           code=$?
           set -e
           test "$code" -eq 1 || { echo "expected exit 1 (FAIL), got $code"; exit 1; }
@@ -38,7 +38,7 @@ jobs:
         if: always()
         with:
           name: simulated-reports
-          path: .local/
+          path: reports/
           if-no-files-found: error
 
   java-ci-triage-demo:
@@ -76,7 +76,7 @@ jobs:
           done
           echo "agent did not start"; cat ../agent.log; exit 1
       - name: Red-team the agent
-        run: python -m redteam run --suite cases/java-ci-triage --target java-ci-triage --base-url http://127.0.0.1:8080 --policy policy/thresholds.json --output .local/java-ci-triage-demo
+        run: python -m redteam run --suite cases/java-ci-triage --target java-ci-triage --base-url http://127.0.0.1:8080 --policy policy/thresholds.json --output reports/java-ci-triage-demo
       - name: Agent log on failure
         if: failure()
         run: tail -n 200 agent.log
@@ -84,5 +84,5 @@ jobs:
         if: always()
         with:
           name: java-ci-triage-demo-report
-          path: .local/
+          path: reports/
           if-no-files-found: error
