@@ -62,7 +62,11 @@ def render_body(template: Any, payload: str) -> Any:
 
 
 class HttpJsonTarget:
-    """POST a JSON body built from a template to one URL."""
+    """POST a JSON body built from a template to one URL.
+
+    With ``body_template=None`` the payload itself is the request body, verbatim.
+    That is the mode for suites whose payloads are whole JSON documents.
+    """
 
     def __init__(
         self,
@@ -81,9 +85,16 @@ class HttpJsonTarget:
     def send(self, case: AttackCase) -> TargetResponse:
         if case.request.raw_body is not None:
             data = case.request.raw_body.encode("utf-8")
+        elif self.body_template is None:
+            data = case.payload.encode("utf-8")
         else:
             data = json.dumps(render_body(self.body_template, case.payload)).encode("utf-8")
         headers = {"Content-Type": case.request.content_type or "application/json", **self.headers}
+        for name, value in case.request.headers.items():
+            if value is None:
+                headers.pop(name, None)
+            else:
+                headers[name] = value
         request = urllib.request.Request(self.url, data=data, headers=headers, method="POST")
         started = time.monotonic()
         try:
@@ -104,6 +115,24 @@ def java_ci_triage_target(base_url: str, timeout_seconds: float = 30.0) -> HttpJ
         url=base_url.rstrip("/") + "/triage",
         body_template={"log": PAYLOAD_MARKER},
         timeout_seconds=timeout_seconds,
+    )
+
+
+def aks_remediation_target(
+    base_url: str, agent_token: str | None, timeout_seconds: float = 30.0
+) -> HttpJsonTarget:
+    """Preset for the remediation workload of JeanneBM/azure-kubernetes-agentic-ops-eval.
+
+    ``POST /internal/v1/remediate`` with the handoff document as the body and the
+    shared agent token in ``X-Agent-Token``. Payloads are whole JSON documents.
+    """
+    headers = {"X-Agent-Token": agent_token} if agent_token else {}
+    return HttpJsonTarget(
+        name="aks-remediation",
+        url=base_url.rstrip("/") + "/internal/v1/remediate",
+        body_template=None,
+        timeout_seconds=timeout_seconds,
+        headers=headers,
     )
 
 

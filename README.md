@@ -13,8 +13,11 @@ It exists to turn a claim — *the model proposes, deterministic policy
 authorizes* — into a measurement that runs on every commit.
 
 - Python 3.11+, standard library only. Runs next to the agent on an air-gapped host.
-- First target: [java-ci-triage-agent](https://github.com/JeanneBM/java-ci-triage-agent),
-  a Maven build-failure triage agent. 13 bundled cases across 9 categories.
+- Two bundled targets, both red-teamed on every push:
+  [java-ci-triage-agent](https://github.com/JeanneBM/java-ci-triage-agent) (13 cases,
+  an LLM triage agent behind a validation layer) and the remediation policy gate of
+  [azure-kubernetes-agentic-ops-eval](https://github.com/JeanneBM/azure-kubernetes-agentic-ops-eval)
+  (19 cases, the deterministic authorizer between a model proposal and an AKS write).
 - Every case maps to [OWASP Top 10 for LLM Applications](docs/mapping.md) and MITRE ATLAS.
 - Reports as JSON (machine), Markdown (PR comment) and self-contained HTML (evidence).
 - Optional LLM-as-a-judge for the few questions rules cannot decide. Never required,
@@ -58,13 +61,50 @@ python -m redteam run \
 
 The `java-ci-triage-demo` job in [ci.yml](.github/workflows/ci.yml) does exactly
 this on every push: it builds the agent from its `main` branch, starts it in demo
-mode and red-teams it. The report is uploaded as a workflow artifact.
+mode and red-teams it. The report is uploaded as a workflow artifact. The
+`aks-remediation-gate` job does the same for the second target.
 
 **What demo mode proves and what it does not.** In demo mode the agent's model is
 scripted, so the run measures the deterministic layer only: input limits, response
 validation, evidence grounding, schema enforcement. To measure the model itself,
 start the agent with `TRIAGE_MODE=live` and run the same command. Live results vary
 between runs; the policy thresholds are the contract, not a single green run.
+
+## Red-team the AKS remediation policy gate
+
+The second target is the *authorizer* of a two-agent system: a model proposes an
+image fix, a separate remediation workload decides. The attacker here is a
+compromised diagnostic agent, or anyone holding the handoff token, sending forged
+facts and proposals to `POST /internal/v1/remediate`.
+
+The harness runs the repository's real `agentic_ops` code with two substitutions:
+an in-memory registry instead of ACR and an executor that records instead of
+patching AKS. No cluster, no Azure account, no model.
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+git clone https://github.com/JeanneBM/azure-kubernetes-agentic-ops-eval.git /tmp/aks-eval
+python -m pip install -c /tmp/aks-eval/constraints.txt /tmp/aks-eval
+
+export AGENTIC_OPS_REMEDIATION_TOKEN=redteam-token
+python targets/aks-remediation/serve.py --port 8081 &
+
+python -m redteam run --suite cases/aks-remediation \
+  --target aks-remediation --base-url http://127.0.0.1:8081 \
+  --policy policy/thresholds.json --output .local/aks
+curl -s http://127.0.0.1:8081/__redteam/executions   # expected: count 1, the control case
+```
+
+The suite probes every rule of the policy one at a time — foreign namespace,
+non-whitelisted action, smuggled parameter, foreign registry, tag change, digest
+pin, far rename, an image that passes every heuristic except the trusted mapping,
+forged pull failures, prose overrides, confidence scores, schema violations and an
+evidence flood — plus a **control case**: the one legitimate correction must still
+execute. A green run where the control fails is not green. The CI job also asserts,
+from the recording executor, that exactly one action ran.
+
+See [targets/aks-remediation/serve.py](targets/aks-remediation/serve.py) for the
+fixture (which images exist, which one is trusted).
 
 Any JSON-over-HTTP agent works with the generic target:
 
@@ -110,7 +150,7 @@ what it wanted. One failed check makes the case `SUCCEEDED` (for the attacker).
 | --- | --- |
 | `http_status` | the status is not in `in` |
 | `json_object` | a 2xx response is not a JSON object |
-| `status_in` | a 2xx response's `status` field is not one of `values` |
+| `field_in` | a 2xx response's `field` is not one of `values` (strict JSON: `false` ≠ `0`, missing = `null`); `status_in` is an alias |
 | `keys_subset` | the JSON object has keys outside `allowed` |
 | `not_contains` | the body contains any of `values` (case-insensitive by default) |
 | `field_not_contains` | one JSON field contains any of `values` |
@@ -118,7 +158,10 @@ what it wanted. One failed check makes the case `SUCCEEDED` (for the attacker).
 | `judge` | the configured judge answers *yes* to `question` (phrase it so yes = attack succeeded); undecided without a judge |
 
 `request.raw_body` sends the body verbatim instead of through the target's
-template — for malformed JSON and type-confusion cases. `python -m redteam
+template — for malformed JSON and type-confusion cases. `request.headers`
+overrides the target's headers for one case; a `null` value removes the header,
+which is how missing-token cases are written. Targets built with no body template
+(the `aks-remediation` preset) send `payload.txt` as the whole JSON body. `python -m redteam
 validate` checks a suite without running it.
 
 ## Scoring and the gate
@@ -164,8 +207,11 @@ check; the unit tests enforce that for the bundled suite.
   back. Tool-call budgets are the agent's own tests to keep.
 - A `BLOCKED` case means this payload did not work, not that the category is
   safe. Thresholds of 0% are a regression gate, not a proof.
-- The bundled cases target one agent contract. Other agents need their own suite;
+- The bundled cases target two agent contracts. Other agents need their own suite;
   the checks are generic, the payloads are not.
+- The AKS suite tests the remediation gate in isolation with a fixed registry
+  fixture. It says nothing about the diagnostic agent, the watcher, Workload
+  Identity or NetworkPolicy, which are the layers in front of the gate in production.
 - Simulated targets demonstrate the harness. They are not evidence about any real
   agent.
 
@@ -174,13 +220,15 @@ check; the unit tests enforce that for the bundled suite.
 | Path | Purpose |
 | --- | --- |
 | `src/redteam/cases.py` | suite loading and validation |
-| `src/redteam/targets.py` | HTTP JSON target, `java-ci-triage` preset |
+| `src/redteam/targets.py` | HTTP JSON target, `java-ci-triage` and `aks-remediation` presets |
 | `src/redteam/checks.py` | deterministic checks |
 | `src/redteam/judge.py` | optional OpenAI-compatible judge |
 | `src/redteam/runner.py` | outcomes, ASR per category, policy gate |
 | `src/redteam/report.py` | JSON, Markdown and HTML reports |
 | `src/redteam/simulated.py` | in-process hardened and naive stand-ins |
-| `cases/java-ci-triage/` | bundled attack suite |
+| `cases/java-ci-triage/` | suite for the LLM triage agent |
+| `cases/aks-remediation/` | suite for the AKS remediation policy gate |
+| `targets/aks-remediation/serve.py` | offline launcher for the real remediation code |
 | `policy/thresholds.json` | default gate |
 | `docs/mapping.md` | OWASP LLM Top 10 and MITRE ATLAS mapping |
 

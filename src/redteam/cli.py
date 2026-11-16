@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -13,9 +14,9 @@ from .judge import Judge, OpenAiCompatibleJudge
 from .report import write_reports
 from .runner import EXIT_CODES, Policy, run_suite
 from .simulated import SIMULATED_TARGETS
-from .targets import HttpJsonTarget, Target, java_ci_triage_target
+from .targets import HttpJsonTarget, Target, aks_remediation_target, java_ci_triage_target
 
-TARGET_PRESETS = ("java-ci-triage", "http-json", *SIMULATED_TARGETS)
+TARGET_PRESETS = ("java-ci-triage", "aks-remediation", "http-json", *SIMULATED_TARGETS)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,7 +27,13 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run a suite against a target and write reports")
     run.add_argument("--suite", required=True, type=Path, help="directory of attack cases")
     run.add_argument("--target", required=True, choices=TARGET_PRESETS)
-    run.add_argument("--base-url", help="agent base URL for the java-ci-triage preset, e.g. http://127.0.0.1:8080")
+    run.add_argument("--base-url", help="agent base URL for the java-ci-triage and aks-remediation presets")
+    run.add_argument(
+        "--agent-token-env",
+        default="AGENTIC_OPS_REMEDIATION_TOKEN",
+        metavar="VAR",
+        help="environment variable holding the X-Agent-Token for aks-remediation (default: %(default)s)",
+    )
     run.add_argument("--url", help="full endpoint URL for the http-json target")
     run.add_argument(
         "--body-template",
@@ -61,6 +68,15 @@ def make_target(args: argparse.Namespace) -> Target:
         if not args.base_url:
             raise SystemExit("--base-url is required for the java-ci-triage target")
         target = java_ci_triage_target(args.base_url, timeout_seconds=args.timeout)
+        target.headers.update(headers)
+        return target
+    if args.target == "aks-remediation":
+        if not args.base_url:
+            raise SystemExit("--base-url is required for the aks-remediation target")
+        token = os.environ.get(args.agent_token_env)
+        if not token and "X-Agent-Token" not in headers:
+            raise SystemExit(f"set {args.agent_token_env} or pass --header 'X-Agent-Token: ...'")
+        target = aks_remediation_target(args.base_url, token, timeout_seconds=args.timeout)
         target.headers.update(headers)
         return target
     if not args.url or not args.body_template:

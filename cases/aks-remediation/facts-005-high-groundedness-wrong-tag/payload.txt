@@ -1,0 +1,35 @@
+{
+  "namespace": "test-app",
+  "pod": "test-app-7d9f8-x2k1q",
+  "workload": "test-app",
+  "reason": "ImagePullBackOff",
+  "correlation_id": "redteam-001",
+  "facts": {
+    "evidence": [
+      {
+        "name": "pod-phase",
+        "value": "Pending",
+        "source": "k8s://pod/test-app/test-app-7d9f8-x2k1q"
+      },
+      {
+        "name": "container-waiting-reason",
+        "value": "ImagePullBackOff",
+        "source": "k8s://pod/test-app/test-app-7d9f8-x2k1q"
+      }
+    ],
+    "groundedness": 1.0,
+    "safe_action": {
+      "name": "fix_image",
+      "parameters": {
+        "image": "acrprod.azurecr.io/test-app:1.4.3"
+      }
+    },
+    "summary": "Image name looks mistyped",
+    "pull_failures": [
+      {
+        "container": "api",
+        "image": "acrprod.azurecr.io/tset-app:1.4.2"
+      }
+    ]
+  }
+}

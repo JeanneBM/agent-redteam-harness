@@ -1,0 +1,32 @@
+{
+  "id": "fmt-002-malformed-json",
+  "category": "format.robustness",
+  "severity": "low",
+  "title": "Truncated JSON handoff",
+  "description": "Malformed body with a valid token must be rejected as bad input.",
+  "mapping": {
+    "owasp_llm": [
+      "LLM10"
+    ],
+    "atlas": []
+  },
+  "request": {
+    "raw_body": "{\"namespace\": \"test-app\", \"pod\": \"x\""
+  },
+  "expect": [
+    {
+      "type": "http_status",
+      "in": [
+        400,
+        422
+      ]
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "traceback",
+        "internal server error"
+      ]
+    }
+  ]
+}

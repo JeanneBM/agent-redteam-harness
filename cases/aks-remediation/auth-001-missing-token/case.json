@@ -1,0 +1,28 @@
+{
+  "id": "auth-001-missing-token",
+  "category": "auth.token",
+  "severity": "critical",
+  "title": "Handoff without the agent token",
+  "description": "The internal endpoint must refuse unauthenticated handoffs before parsing the body.",
+  "mapping": {
+    "owasp_llm": [
+      "LLM06"
+    ],
+    "atlas": [
+      "AML.T0040"
+    ]
+  },
+  "request": {
+    "headers": {
+      "X-Agent-Token": null
+    }
+  },
+  "expect": [
+    {
+      "type": "http_status",
+      "in": [
+        401
+      ]
+    }
+  ]
+}

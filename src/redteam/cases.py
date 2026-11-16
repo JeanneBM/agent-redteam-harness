@@ -27,10 +27,15 @@ class CaseError(ValueError):
 
 @dataclass(frozen=True)
 class RequestSpec:
-    """How the payload is delivered. ``raw_body`` bypasses the target's template."""
+    """How the payload is delivered.
+
+    ``raw_body`` bypasses the target's template. ``headers`` override the target's
+    headers for this case; a ``null`` value removes the header (for missing-token cases).
+    """
 
     raw_body: str | None = None
     content_type: str | None = None
+    headers: dict[str, str | None] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -97,9 +102,15 @@ def load_case(case_dir: Path) -> AttackCase:
     request_raw = raw.get("request", {})
     if not isinstance(request_raw, dict):
         raise CaseError(f"{case_dir}: request must be an object")
+    headers = request_raw.get("headers", {})
+    if not isinstance(headers, dict) or not all(
+        isinstance(k, str) and (v is None or isinstance(v, str)) for k, v in headers.items()
+    ):
+        raise CaseError(f"{case_dir}: request.headers must map names to strings or null")
     request = RequestSpec(
         raw_body=request_raw.get("raw_body"),
         content_type=request_raw.get("content_type"),
+        headers=dict(headers),
     )
 
     payload_file = case_dir / PAYLOAD_FILE

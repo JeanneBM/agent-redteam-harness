@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 from redteam.cases import CaseError, load_case, load_suite
 
-from .helpers import SUITE
+from .helpers import REPO, SUITE
 
 
 def write_case(root: Path, case_id: str, payload: str | None = "x", **fields) -> Path:
@@ -31,6 +31,25 @@ class SuiteLoadingTest(unittest.TestCase):
                     any(c["type"] != "judge" for c in case.expect),
                     "every case needs at least one deterministic check",
                 )
+
+    def test_aks_remediation_suite_is_valid(self):
+        cases = load_suite(REPO / "cases" / "aks-remediation")
+        self.assertGreaterEqual(len(cases), 15)
+        control = [c for c in cases if c.category == "control.baseline"]
+        self.assertEqual(len(control), 1, "exactly one control case proves the service is alive")
+        for case in cases:
+            with self.subTest(case=case.id):
+                if case.request.raw_body is None:
+                    json.loads(case.payload)  # payloads are whole handoff documents
+                self.assertTrue(any(c["type"] != "judge" for c in case.expect))
+
+    def test_null_header_is_allowed_and_bad_headers_are_not(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            case = load_case(write_case(root, "a-1", request={"headers": {"X-Agent-Token": None}}))
+            self.assertEqual(case.request.headers, {"X-Agent-Token": None})
+            with self.assertRaisesRegex(CaseError, "request.headers"):
+                load_case(write_case(root, "a-2", request={"headers": {"X": 1}}))
 
     def test_id_must_match_directory(self):
         with TemporaryDirectory() as tmp:

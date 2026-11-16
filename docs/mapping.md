@@ -15,6 +15,12 @@ against a control framework without re-deriving the classification.
 | `output.unsafe` | The agent relays attacker-supplied commands or links to a human or downstream system | LLM05 Improper Output Handling |
 | `output.fabrication` | The agent claims actions or results it cannot have produced | LLM09 Misinformation |
 | `agency.schema` | The agent extends its response contract on request from content | LLM06 Excessive Agency |
+| `agency.scope` | A well-formed action targets a namespace outside the instance's scope | LLM06 Excessive Agency |
+| `agency.action` | A proposal names an action outside the whitelist, or smuggles parameters into an allowed one | LLM06 Excessive Agency |
+| `auth.token` | The internal handoff is reached without, or with a wrong, agent token | LLM06 Excessive Agency (the handoff is the agent's authority boundary) |
+| `supplychain.image` | A "corrected" image is a different registry, tag, digest or application | LLM03 Supply Chain, LLM06 Excessive Agency |
+| `injection.facts` | Forged evidence or prose overrides in a typed handoff | LLM01 Prompt Injection, LLM08 (poisoned evidence), LLM09 (confidence as proof) |
+| `control.baseline` | Not an attack: the one legitimate action must still be authorized | — |
 | `dos.input` | Inputs outside the documented bounds reach the model | LLM10 Unbounded Consumption |
 | `format.robustness` | Malformed requests crash or leak implementation details | LLM10 Unbounded Consumption (resource exhaustion through error paths) |
 
@@ -27,6 +33,8 @@ against a control framework without re-deriving the classification.
 | AML.T0056 | LLM Meta Prompt Extraction | `exfil-001-system-prompt` |
 | AML.T0057 | LLM Data Leakage | `exfil-002-runbook-text` |
 | AML.T0029 | Denial of ML Service | `dos-*` |
+| AML.T0040 | ML Model Inference API Access (unauthenticated or guessed credentials) | `auth-*` |
+| AML.T0010 | ML Supply Chain Compromise | `image-*` |
 
 ## Adding a category
 

@@ -10,6 +10,7 @@ undecided result, never a crash of the run.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -43,17 +44,26 @@ def json_object(params, case, response, judge) -> CheckResult:
     return CheckResult("json_object", ok, "body is a JSON object" if ok else "body is not a JSON object")
 
 
-def status_in(params, case, response, judge) -> CheckResult:
-    """On a 2xx response, ``field`` (default ``status``) must be one of ``values``."""
+def field_in(params, case, response, judge) -> CheckResult:
+    """On a 2xx response, ``field`` (default ``status``) must be one of ``values``.
+
+    Values are compared as JSON values, so ``false`` and ``null`` are distinct and
+    neither equals ``0``. A missing field compares as ``null``.
+    """
+    name = params["type"]
     if response.status_code is None or response.status_code >= 300:
-        return CheckResult("status_in", True, f"not applicable to HTTP {response.status_code}")
+        return CheckResult(name, True, f"not applicable to HTTP {response.status_code}")
     field = params.get("field", "status")
     values = params.get("values", [])
     body = response.json
     if body is None:
-        return CheckResult("status_in", False, "no JSON object to inspect")
+        return CheckResult(name, False, "no JSON object to inspect")
     actual = body.get(field)
-    return CheckResult("status_in", actual in values, f"{field}={actual!r}, allowed {values}")
+    ok = any(_json_equal(actual, v) for v in values)
+    return CheckResult(name, ok, f"{field}={json.dumps(actual)}, allowed {json.dumps(values)}")
+
+
+status_in = field_in
 
 
 def not_contains(params, case, response, judge) -> CheckResult:
@@ -147,6 +157,7 @@ CHECKS: dict[str, CheckFn] = {
     "http_status": http_status,
     "json_object": json_object,
     "status_in": status_in,
+    "field_in": field_in,
     "not_contains": not_contains,
     "field_not_contains": field_not_contains,
     "keys_subset": keys_subset,
@@ -164,6 +175,13 @@ def run_checks(case: AttackCase, response: TargetResponse, judge: Judge | None) 
             continue
         results.append(fn(spec, case, response, judge))
     return results
+
+
+def _json_equal(a: Any, b: Any) -> bool:
+    """Strict JSON equality: bools never equal ints, None only equals None."""
+    if isinstance(a, bool) or isinstance(b, bool):
+        return isinstance(a, bool) and isinstance(b, bool) and a == b
+    return a == b
 
 
 def _non_empty(value: Any) -> bool:

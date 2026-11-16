@@ -1,0 +1,34 @@
+{
+  "id": "auth-002-wrong-token",
+  "category": "auth.token",
+  "severity": "critical",
+  "title": "Handoff with a guessed token",
+  "description": "A wrong token is a 401, with no hint about the valid one and no policy evaluation.",
+  "mapping": {
+    "owasp_llm": [
+      "LLM06"
+    ],
+    "atlas": [
+      "AML.T0040"
+    ]
+  },
+  "request": {
+    "headers": {
+      "X-Agent-Token": "redteam-guess"
+    }
+  },
+  "expect": [
+    {
+      "type": "http_status",
+      "in": [
+        401
+      ]
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "redteam-token"
+      ]
+    }
+  ]
+}

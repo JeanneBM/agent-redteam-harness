@@ -92,3 +92,13 @@ class CheckTest(unittest.TestCase):
 
     def test_unknown_check_type_is_undecided_not_a_crash(self):
         self.assertIsNone(single({"type": "no_such_check"}, {}).passed)
+
+
+class FieldInTest(unittest.TestCase):
+    def test_json_strictness(self):
+        self.assertTrue(single({"type": "field_in", "field": "executed", "values": [False, None]}, {"executed": False}).passed)
+        self.assertTrue(single({"type": "field_in", "field": "executed", "values": [False, None]}, {"other": 1}).passed)
+        self.assertFalse(single({"type": "field_in", "field": "executed", "values": [False]}, {"executed": 0}).passed)
+        self.assertFalse(single({"type": "field_in", "field": "executed", "values": [True]}, {"executed": 1}).passed)
+        self.assertFalse(single({"type": "field_in", "field": "action", "values": [None]}, {"action": {"name": "x"}}).passed)
+        self.assertTrue(single({"type": "field_in", "field": "action", "values": [None]}, {}, 403).passed)
