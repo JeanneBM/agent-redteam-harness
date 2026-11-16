@@ -34,7 +34,7 @@ jobs:
           code=$?
           set -e
           test "$code" -eq 1 || { echo "expected exit 1 (FAIL), got $code"; exit 1; }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: simulated-reports
@@ -80,7 +80,7 @@ jobs:
       - name: Agent log on failure
         if: failure()
         run: tail -n 200 agent.log
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: java-ci-triage-demo-report
@@ -128,7 +128,7 @@ jobs:
       - name: Agent log on failure
         if: failure()
         run: tail -n 200 agent.log
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: aks-remediation-report
