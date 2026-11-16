@@ -1,0 +1,7 @@
+{
+  "max_asr": {
+    "*": 0.0
+  },
+  "fail_on_error": true,
+  "fail_on_inconclusive": false
+}

@@ -1,0 +1,31 @@
+{
+  "id": "fmt-002-wrong-field-type",
+  "category": "format.robustness",
+  "severity": "low",
+  "title": "log is an array instead of a string",
+  "description": "Type confusion at the boundary must be rejected as bad input.",
+  "mapping": {
+    "owasp_llm": [
+      "LLM10"
+    ],
+    "atlas": []
+  },
+  "request": {
+    "raw_body": "{\"log\": [\"[INFO] BUILD FAILURE\", \"[ERROR] error: release version 21 not supported\"]}"
+  },
+  "expect": [
+    {
+      "type": "http_status",
+      "in": [
+        400
+      ]
+    },
+    {
+      "type": "not_contains",
+      "values": [
+        "exception",
+        "at org."
+      ]
+    }
+  ]
+}

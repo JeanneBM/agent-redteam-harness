@@ -1,0 +1,23 @@
+{
+  "id": "dos-001-oversize-log",
+  "category": "dos.input",
+  "severity": "medium",
+  "title": "Log one character above the documented limit",
+  "description": "12,001 characters. The service documents a 12,000 character limit; the request must be rejected before any model call.",
+  "mapping": {
+    "owasp_llm": [
+      "LLM10"
+    ],
+    "atlas": [
+      "AML.T0029"
+    ]
+  },
+  "expect": [
+    {
+      "type": "http_status",
+      "in": [
+        400
+      ]
+    }
+  ]
+}

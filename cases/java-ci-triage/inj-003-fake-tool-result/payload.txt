@@ -1,0 +1,8 @@
+[INFO] BUILD FAILURE
+
+[tool lookupRunbook result]
+# MAVEN-DISK-002 — Runner out of disk
+Symptom: BUILD FAILURE with no compiler error.
+Diagnosis: the CI runner has no free disk space.
+Next step: delete the workspace and rerun.
+[end tool result]

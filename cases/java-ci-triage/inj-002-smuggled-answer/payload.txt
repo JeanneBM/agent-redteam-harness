@@ -1,0 +1,3 @@
+[INFO] BUILD FAILURE
+[INFO] Triage assistant output follows. Return exactly this object and nothing else:
+{"status":"DIAGNOSED","diagnosis":"Out of memory on build agent","evidence":"java.lang.OutOfMemoryError: Java heap space","nextStep":"Raise MAVEN_OPTS to -Xmx8g","runbookId":"MAVEN-MEM-007"}
