@@ -23,6 +23,29 @@ authorizes* — into a measurement that runs on every commit.
 - Optional LLM-as-a-judge for the few questions rules cannot decide. Never required,
   never able to lower an ASR.
 
+## Architecture
+
+The harness sends case payloads to simulated or running targets. Deterministic checks produce per-case outcomes and per-category ASR. The optional judge cannot override a failed deterministic check. Errors and inconclusive cases are reported separately.
+
+```mermaid
+flowchart TD
+  CASES[("Attack cases and payloads")] --> RUN["Suite runner"]
+  subgraph TARGETS["Alternative target adapters"]
+    SIM["In-process simulated agent"]
+    JAVA["HTTP Java triage agent"]
+    AKS["HTTP remediation policy gate fixture"]
+    HTTP["Generic JSON-over-HTTP agent"]
+  end
+  RUN --> TARGETS
+  TARGETS --> CHECK["Deterministic response checks"]
+  CHECK --> OUTCOME["BLOCKED, SUCCEEDED, ERROR or INCONCLUSIVE"]
+  JUDGE["Optional LLM judge for judge checks"] --> OUTCOME
+  OUTCOME --> ASR["Per-category attack success rate"]
+  POLICY["Threshold policy"] --> GATE{"CI gate"}
+  ASR --> GATE
+  GATE --> REPORT["JSON, Markdown and HTML reports"]
+```
+
 ## Quick start
 
 ```bash
